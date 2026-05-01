@@ -1,442 +1,200 @@
-# 🧠 TraceMind AI
+# 🧠 TraceMind AI - Intelligent Bug Analysis Platform
 
-**Natural Language Bug Intelligence System**
-
-TraceMind AI is an AI-powered debugging assistant that analyzes codebases and identifies root causes, suggests fixes, and generates regression tests from plain English bug descriptions.
+AI-powered bug analysis tool that uses IBM watsonx.ai to understand, locate, and fix bugs in your codebase automatically.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![React 18+](https://img.shields.io/badge/react-18+-61dafb.svg)](https://reactjs.org/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Node 18+](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
 
----
+## 🚀 Features
 
-## 🎯 Features
-
-- **🔐 Secure Authentication**: JWT-based auth with bcrypt password hashing
-- **📁 Project Management**: Create and manage multiple code projects
-- **📦 Repository Integration**: Connect GitHub repos or upload ZIP files
-- **🧠 AI-Powered Analysis**: 5-agent system using IBM watsonx.ai
-- **🔍 Semantic Code Search**: FAISS vector database for intelligent code retrieval
-- **☁️ Cloud Storage**: Cloudflare R2 for scalable, stateless architecture
-- **🎨 Clean UI**: React + TailwindCSS for intuitive user experience
-- **🔒 Production-Ready Security**: Rate limiting, input validation, CORS, and more
-
----
+- **🤖 AI-Powered Analysis**: 5 specialized agents for comprehensive bug analysis
+- **🔍 Smart Code Search**: Vector-based semantic code search with FAISS
+- **💡 Root Cause Detection**: Deep analysis to find the true source of bugs
+- **🛠️ Fix Generation**: Automatic code fix suggestions with best practices
+- **✅ Test Generation**: Auto-generated test cases to verify fixes
+- **📦 Multi-Language Support**: Python, JavaScript, TypeScript, and more
+- **☁️ Cloud Storage**: Cloudflare R2 for scalable repository storage
+- **🎨 Modern UI**: Clean React interface with TailwindCSS
 
 ## 🏗️ Architecture
 
 ```
-Frontend (React + Vite + Tailwind)
-         ↓ REST API
-Backend (FastAPI + Python 3.11+)
-         ↓
-┌────────┼────────┬──────────┐
-│        │        │          │
-PostgreSQL  R2   watsonx   FAISS
-Database  Storage  .ai    VectorDB
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│   React UI  │────▶│  FastAPI     │────▶│ watsonx.ai  │
+│  (Frontend) │     │  (Backend)   │     │  (5 Agents) │
+└─────────────┘     └──────────────┘     └─────────────┘
+                           │
+                    ┌──────┴──────┐
+                    │             │
+              ┌─────▼────┐  ┌────▼─────┐
+              │PostgreSQL│  │Cloudflare│
+              │          │  │    R2    │
+              └──────────┘  └──────────┘
 ```
 
-### AI Agent System
+### AI Agents Pipeline
 
-```
-Bug Input → Understanding Agent → Retrieval Agent → Root Cause Agent
-                                                            ↓
-                                                    Fix Generator Agent
-                                                            ↓
-                                                    Test Generator Agent
-                                                            ↓
-                                                    Aggregated Result
-```
+1. **Bug Understanding Agent** - Analyzes bug description
+2. **Code Retrieval Agent** - Finds relevant code using vector search
+3. **Root Cause Agent** - Identifies the underlying issue
+4. **Fix Generator Agent** - Creates code fixes
+5. **Test Generator Agent** - Generates validation tests
 
----
+## 📋 Prerequisites
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.11+
+- Python 3.9+
 - Node.js 18+
-- PostgreSQL 15+
-- Docker & Docker Compose (optional)
+- PostgreSQL 14+
+- IBM watsonx.ai account
 - Cloudflare R2 account
-- IBM watsonx.ai credentials
+
+## ⚡ Quick Start
 
 ### 1. Clone Repository
-
 ```bash
-git clone https://github.com/yourusername/tracemind-ai.git
-cd tracemind-ai
+git clone <repository-url>
+cd trace-mind
 ```
 
 ### 2. Backend Setup
-
 ```bash
 cd backend
-
-# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Install dependencies
+source venv/bin/activate
 pip install -r requirements.txt
-
-# Setup environment variables
 cp .env.example .env
 # Edit .env with your credentials
-
-# Start PostgreSQL (using Docker)
-docker-compose up -d postgres
-
-# Run migrations
 alembic upgrade head
-
-# Start backend
 uvicorn app.main:app --reload
 ```
 
-Backend runs at: `http://localhost:8000`
-
-API docs at: `http://localhost:8000/docs`
-
 ### 3. Frontend Setup
-
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Setup environment variables
 cp .env.example .env
-# Edit .env with backend URL
-
-# Start frontend
+# Edit .env with API URL
 npm run dev
 ```
 
-Frontend runs at: `http://localhost:5173`
+### 4. Access Application
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
 
----
-
-## 📦 Docker Deployment
+## 🐳 Docker Deployment
 
 ```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
+# Production deployment
+docker-compose -f docker-compose.prod.yml up -d
 ```
-
----
-
-## 🔧 Configuration
-
-### Backend Environment Variables
-
-```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/tracemind
-
-# JWT
-SECRET_KEY=your-secret-key-min-32-chars
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
-
-# Cloudflare R2
-R2_ENDPOINT=https://account-id.r2.cloudflarestorage.com
-R2_ACCESS_KEY=your_access_key
-R2_SECRET_KEY=your_secret_key
-R2_BUCKET=tracemind-projects
-
-# watsonx.ai
-WATSONX_API_KEY=your_api_key
-WATSONX_PROJECT_ID=your_project_id
-WATSONX_URL=https://us-south.ml.cloud.ibm.com
-
-# Application
-ENVIRONMENT=development
-CORS_ORIGINS=http://localhost:5173
-MAX_UPLOAD_SIZE=104857600
-```
-
-### Frontend Environment Variables
-
-```env
-VITE_API_BASE_URL=http://localhost:8000/api/v1
-VITE_APP_NAME=TraceMind AI
-```
-
----
 
 ## 📚 Documentation
 
-- **[Technical Plan](TECHNICAL_PLAN.md)**: Complete implementation guide with 20 phases
-- **[API Specification](API_SPECIFICATION.md)**: Detailed API endpoint documentation
-- **[Security Guide](SECURITY_GUIDE.md)**: Security implementation and best practices
-- **[Deployment & Demo Guide](DEPLOYMENT_DEMO_GUIDE.md)**: Production deployment and demo preparation
+- [Setup Guide](SETUP_GUIDE.md) - Detailed installation instructions
+- [User Guide](USER_GUIDE.md) - How to use the platform
+- [API Specification](API_SPECIFICATION.md) - API endpoints documentation
+- [Security Guide](SECURITY_GUIDE.md) - Security best practices
+- [Deployment Guide](DEPLOYMENT_DEMO_GUIDE.md) - Production deployment
 
----
+## 🎯 Usage Example
 
-## 🎬 Demo Flow
-
-1. **Register/Login**: Create account or sign in
-2. **Create Project**: Name your project
-3. **Connect Repository**: GitHub URL or ZIP upload
-4. **Index Codebase**: System parses and indexes code (1-2 minutes)
-5. **Submit Bug**: Describe bug in plain English
-6. **Get Results**: Receive root cause, fix, and test in <10 seconds
+1. **Create Project**: Upload your codebase (ZIP or GitHub)
+2. **Parse Code**: Extract functions and classes
+3. **Index**: Build vector embeddings for search
+4. **Analyze Bug**: Describe the issue in natural language
+5. **Get Results**: Root cause, fix, and tests in seconds
 
 ### Example Bug Description
-
 ```
-"Checkout breaks after applying discount code. Users see 500 error."
-```
-
-### Example Output
-
-**Affected Files**: `checkout.js`, `discount.js`
-
-**Root Cause**: Null pointer exception when discount validation fails
-
-**Fix**: Add null check before accessing discount properties
-
-**Test**: Regression test for invalid discount codes
-
----
-
-## 🧪 Testing
-
-### Backend Tests
-
-```bash
-cd backend
-pytest tests/ -v
-pytest tests/ --cov=app --cov-report=html
+"User authentication fails after password reset with 401 error.
+The reset email is received but login still shows invalid credentials."
 ```
 
-### Frontend Tests
-
-```bash
-cd frontend
-npm run test
-npm run test:coverage
-```
-
----
-
-## 🔐 Security Features
-
-- ✅ JWT authentication with 24h expiry
-- ✅ Bcrypt password hashing (12 rounds)
-- ✅ Rate limiting (5 login attempts/15min)
-- ✅ CORS whitelist configuration
-- ✅ Input validation with Pydantic
-- ✅ SQL injection prevention (SQLAlchemy ORM)
-- ✅ XSS protection (CSP headers)
-- ✅ File upload validation (100MB limit)
-- ✅ Environment variable security
-- ✅ HTTPS enforcement in production
-
----
-
-## 📊 Performance Targets
-
-| Metric | Target | Status |
-|--------|--------|--------|
-| Page Load | < 2 seconds | ✅ |
-| Bug Analysis | < 10 seconds | ✅ |
-| Repository Indexing | < 2 min (1000 files) | ✅ |
-| API Response | < 500ms | ✅ |
-
----
+### AI Response
+- **Root Cause**: Session token not invalidated after password change
+- **Fix**: Add token invalidation in password reset endpoint
+- **Test**: Automated test to verify token refresh
 
 ## 🛠️ Tech Stack
 
-### Backend
-- **Framework**: FastAPI 0.109+
-- **Language**: Python 3.11+
-- **Database**: PostgreSQL 15+ with SQLAlchemy 2.0+
-- **Authentication**: python-jose, passlib[bcrypt]
-- **Cloud Storage**: boto3 (Cloudflare R2)
-- **Code Parsing**: tree-sitter
-- **Vector Search**: faiss-cpu
-- **AI**: ibm-watsonx-ai
+**Backend:**
+- FastAPI - Modern Python web framework
+- SQLAlchemy - ORM for database operations
+- Alembic - Database migrations
+- watsonx.ai - IBM's AI models
+- FAISS - Vector similarity search
+- tree-sitter - Code parsing
 
-### Frontend
-- **Framework**: React 18+
-- **Build Tool**: Vite 5+
-- **Styling**: TailwindCSS 3+
-- **HTTP Client**: Axios
-- **Routing**: React Router v6
-- **Icons**: Lucide React
+**Frontend:**
+- React 18 - UI library
+- Vite - Build tool
+- TailwindCSS - Styling
+- React Router - Navigation
+- Axios - HTTP client
 
----
+**Infrastructure:**
+- PostgreSQL - Primary database
+- Cloudflare R2 - Object storage
+- Docker - Containerization
+- Nginx - Web server
 
-## 📁 Project Structure
+## 📊 Project Structure
 
 ```
-tracemind-ai/
+trace-mind/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py              # FastAPI app
-│   │   ├── models/              # SQLAlchemy models
-│   │   ├── schemas/             # Pydantic schemas
-│   │   ├── api/                 # API routes
-│   │   ├── services/            # Business logic
-│   │   ├── agents/              # AI agents
-│   │   └── core/                # Security, config
-│   ├── tests/
+│   │   ├── agents/        # AI agents
+│   │   ├── api/           # API routes
+│   │   ├── models/        # Database models
+│   │   ├── services/      # Business logic
+│   │   └── main.py        # FastAPI app
+│   ├── tests/             # Backend tests
 │   └── requirements.txt
-│
 ├── frontend/
 │   ├── src/
-│   │   ├── components/          # React components
-│   │   ├── pages/               # Page components
-│   │   ├── services/            # API services
-│   │   └── hooks/               # Custom hooks
+│   │   ├── components/    # React components
+│   │   ├── pages/         # Page components
+│   │   ├── services/      # API client
+│   │   └── App.jsx
 │   └── package.json
-│
-├── TECHNICAL_PLAN.md            # Implementation guide
-├── API_SPECIFICATION.md         # API documentation
-├── SECURITY_GUIDE.md            # Security practices
-├── DEPLOYMENT_DEMO_GUIDE.md     # Deployment guide
 └── docker-compose.yml
 ```
 
----
+## 🧪 Testing
+
+```bash
+# Backend tests
+cd backend
+pytest
+
+# Frontend tests
+cd frontend
+npm test
+```
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📝 API Endpoints
-
-### Authentication
-- `POST /api/v1/auth/register` - Register new user
-- `POST /api/v1/auth/login` - Login user
-- `GET /api/v1/auth/me` - Get current user
-
-### Projects
-- `POST /api/v1/projects` - Create project
-- `GET /api/v1/projects` - List projects
-- `GET /api/v1/projects/{id}` - Get project
-- `DELETE /api/v1/projects/{id}` - Delete project
-
-### Repository
-- `POST /api/v1/repository/connect` - Connect GitHub repo
-- `POST /api/v1/repository/upload` - Upload ZIP file
-
-### Analysis
-- `POST /api/v1/analysis/analyze` - Analyze bug
-- `GET /api/v1/analysis/history` - Get analysis history
-
-See [API_SPECIFICATION.md](API_SPECIFICATION.md) for complete documentation.
-
----
-
-## 🎯 Roadmap
-
-### Phase 1: Foundation ✅
-- [x] Project setup
-- [x] Database schema
-- [x] Authentication system
-
-### Phase 2: Core Features ✅
-- [x] Project management
-- [x] Repository ingestion
-- [x] Code parsing & indexing
-
-### Phase 3: AI Integration ✅
-- [x] watsonx.ai integration
-- [x] Agent system
-- [x] Bug analysis pipeline
-
-### Phase 4: Frontend ✅
-- [x] React application
-- [x] Authentication UI
-- [x] Dashboard & project management
-- [x] Bug analysis interface
-
-### Phase 5: Production Ready 🚧
-- [ ] Security hardening
-- [ ] Performance optimization
-- [ ] Testing & QA
-- [ ] Documentation
-
-### Future Enhancements 📋
-- [ ] Multi-language support
-- [ ] Real-time collaboration
-- [ ] GitHub integration (webhooks)
-- [ ] Advanced analytics
-- [ ] Custom AI model training
-
----
-
-## 🐛 Known Issues
-
-- Analysis may timeout for very large codebases (>10,000 files)
-- GitHub private repos require personal access token
-- watsonx.ai rate limits may affect concurrent users
-
----
+Contributions welcome! Please read our contributing guidelines first.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
+MIT License - see [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- **IBM watsonx.ai** for AI capabilities
-- **Cloudflare R2** for scalable storage
-- **FastAPI** for excellent Python framework
-- **React** for powerful UI library
-
----
+- IBM watsonx.ai for AI models
+- Cloudflare for R2 storage
+- Open source community
 
 ## 📞 Support
 
-- **Documentation**: See docs folder
-- **Issues**: [GitHub Issues](https://github.com/yourusername/tracemind-ai/issues)
-- **Email**: support@tracemind.ai
+- Documentation: [docs](/)
+- Issues: [GitHub Issues](repository-url/issues)
+- Email: support@tracemind.ai
 
 ---
 
-## 🌟 Star History
-
-If you find this project useful, please consider giving it a star! ⭐
-
----
-
-**Built with ❤️ for developers who hate debugging**
-
----
-
-## 🚀 Getting Started Checklist
-
-- [ ] Clone repository
-- [ ] Setup PostgreSQL database
-- [ ] Configure environment variables
-- [ ] Install backend dependencies
-- [ ] Run database migrations
-- [ ] Install frontend dependencies
-- [ ] Start backend server
-- [ ] Start frontend server
-- [ ] Create test account
-- [ ] Create test project
-- [ ] Upload sample repository
-- [ ] Run first bug analysis
-- [ ] Review results
-
-**Ready to eliminate debugging headaches? Let's get started!** 🎉
+Built with ❤️ for developers by developers
