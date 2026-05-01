@@ -106,7 +106,7 @@
 ---
 
 ### Phase 6: Repository Ingestion ✅
-**Status**: COMPLETE
+**Status**: COMPLETE (Committed: 7b091f6)
 
 **Deliverables**:
 - ✅ RepoIngestionService with GitHub and ZIP support
@@ -124,24 +124,37 @@
 
 ---
 
+### Phase 7: Code Parsing Engine ✅
+**Status**: COMPLETE
+
+**Deliverables**:
+- ✅ CodeParserService with tree-sitter integration
+- ✅ Python parsing (functions, classes)
+- ✅ JavaScript/TypeScript parsing (functions, classes, methods)
+- ✅ Code chunking (500 lines max, 50 line overlap)
+- ✅ AST-based definition extraction
+- ✅ Store chunks in database with metadata
+- ✅ Background parsing with FastAPI BackgroundTasks
+- ✅ API routes for parsing management
+- ✅ POST /parsing/{id}/parse - Trigger parsing
+- ✅ GET /parsing/{id}/parsing-status - Get status
+- ✅ DELETE /parsing/{id}/chunks - Delete chunks
+
+**Files Created**: 2 files
+
+---
+
 ## 📋 Next Steps
 
-### Immediate (Phase 7)
-1. **Phase 7**: Code parsing with tree-sitter
-   - Python and JavaScript/TypeScript parsing
-   - Code chunking (500 lines, 50 overlap)
-   - Store chunks in database
-
-### Short Term (Phases 8-10)
+### Immediate (Phase 8)
 1. **Phase 8**: FAISS vector indexing
-2. **Phase 9**: watsonx.ai integration
-3. **Phase 10**: Bug analysis pipeline
+   - Generate embeddings for code chunks
+   - Create FAISS index
+   - Implement similarity search
 
-### Medium Term (Phases 7-10)
-1. **Phase 7**: Code parsing with tree-sitter
-2. **Phase 8**: FAISS vector indexing
-3. **Phase 9**: watsonx.ai integration
-4. **Phase 10**: Bug analysis pipeline
+### Short Term (Phases 9-10)
+1. **Phase 9**: watsonx.ai integration (5 agents)
+2. **Phase 10**: Bug analysis pipeline
 
 ### Long Term (Phases 11-20)
 1. **Phases 11-15**: Frontend implementation
