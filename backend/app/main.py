@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from app.config import settings
+from app.api import api_router
 
 # Configure logging
 logging.basicConfig(
@@ -32,6 +33,9 @@ app.add_middleware(
     allow_headers=["*"],
     max_age=3600,
 )
+
+# Include API router
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/")
