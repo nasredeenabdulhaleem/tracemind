@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: tracemind-postgres
+    environment:
+      POSTGRES_DB: tracemind
+      POSTGRES_USER: tracemind
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracemind"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tracemind-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: tracemind-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - tracemind-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  tracemind-network:
+    driver: bridge
+
+# Made with Bob
