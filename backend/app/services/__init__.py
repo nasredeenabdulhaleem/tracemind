@@ -6,6 +6,7 @@ from app.services.storage_service import RepoStorageService
 from app.services.repo_service import RepoIngestionService
 from app.services.parser_service import CodeParserService
 from app.services.vector_service import VectorIndexService
+from app.services.analysis_service import AnalysisOrchestrationService
 
 __all__ = [
     "AuthService",
@@ -13,7 +14,8 @@ __all__ = [
     "RepoStorageService",
     "RepoIngestionService",
     "CodeParserService",
-    "VectorIndexService"
+    "VectorIndexService",
+    "AnalysisOrchestrationService"
 ]
 
 # Made with Bob

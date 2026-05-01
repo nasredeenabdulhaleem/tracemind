@@ -8,6 +8,12 @@ from app.schemas.project import (
     ProjectListItem,
     ProjectList
 )
+from app.schemas.analysis import (
+    AnalysisRequest,
+    AnalysisResponse,
+    AnalysisListItem,
+    AnalysisList
+)
 
 __all__ = [
     "UserCreate",
@@ -18,7 +24,11 @@ __all__ = [
     "ProjectUpdate",
     "ProjectResponse",
     "ProjectListItem",
-    "ProjectList"
+    "ProjectList",
+    "AnalysisRequest",
+    "AnalysisResponse",
+    "AnalysisListItem",
+    "AnalysisList"
 ]
 
 # Made with Bob

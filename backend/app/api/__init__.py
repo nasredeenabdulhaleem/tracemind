@@ -1,7 +1,7 @@
 """API routes"""
 
 from fastapi import APIRouter
-from app.api import auth, projects, repository, parsing, indexing
+from app.api import auth, projects, repository, parsing, indexing, analysis
 
 # Create main API router
 api_router = APIRouter()
@@ -12,6 +12,7 @@ api_router.include_router(projects.router, prefix="/projects", tags=["Projects"]
 api_router.include_router(repository.router, prefix="/repository", tags=["Repository"])
 api_router.include_router(parsing.router, prefix="/parsing", tags=["Code Parsing"])
 api_router.include_router(indexing.router, prefix="/indexing", tags=["Vector Indexing"])
+api_router.include_router(analysis.router, prefix="/analysis", tags=["Bug Analysis"])
 
 __all__ = ["api_router"]
 
