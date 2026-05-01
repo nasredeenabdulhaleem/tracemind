@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_DB: tracemind
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tracemind-network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/tracemind
+      SECRET_KEY: ${SECRET_KEY}
+      WATSONX_API_KEY: ${WATSONX_API_KEY}
+      WATSONX_PROJECT_ID: ${WATSONX_PROJECT_ID}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME}
+      R2_ENDPOINT_URL: ${R2_ENDPOINT_URL}
+    depends_on:
+      - postgres
+    networks:
+      - tracemind-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - tracemind-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  tracemind-network:
+    driver: bridge
+
+# Made with Bob
