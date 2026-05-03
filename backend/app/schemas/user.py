@@ -3,6 +3,7 @@
 from pydantic import BaseModel, EmailStr, Field, validator
 from datetime import datetime
 from typing import Optional
+from uuid import UUID
 import re
 
 
@@ -41,7 +42,7 @@ class UserLogin(BaseModel):
 
 class UserResponse(BaseModel):
     """Schema for user response"""
-    id: str
+    id: UUID
     email: str
     username: str
     is_active: bool

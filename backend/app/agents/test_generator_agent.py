@@ -2,13 +2,19 @@
 
 from typing import Dict, Any
 from app.agents.base_agent import BaseAgent
+from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 
 
 class TestGeneratorAgent(BaseAgent):
     """Agent for generating regression tests"""
     
     def __init__(self):
-        super().__init__(model_id="ibm/granite-20b-code-instruct")
+        params = {
+            GenParams.MAX_NEW_TOKENS: 2048,
+            GenParams.TEMPERATURE: 0.2,
+            GenParams.TOP_P: 0.9,
+        }
+        super().__init__(model_id="meta-llama/llama-3-3-70b-instruct", params=params)
     
     def build_prompt(
         self,
@@ -17,25 +23,28 @@ class TestGeneratorAgent(BaseAgent):
         language: str = "python"
     ) -> str:
         """Build prompt for test generation"""
-        
         test_framework = "pytest" if language == "python" else "jest"
-        
+        if len(fixed_code) > 2000:
+            fixed_code = fixed_code[:2000] + "\n# ... (truncated)"
+
         return f"""You are an expert software engineer writing regression tests.
 
-Bug Summary: {bug_info.get('summary', 'Unknown')}
+Bug Fixed: {bug_info.get('summary', 'Unknown')}
 Language: {language}
-Test Framework: {test_framework}
+Framework: {test_framework}
 
 Fixed Code:
+```{language}
 {fixed_code}
+```
 
-Generate a comprehensive regression test that:
-1. Tests the bug scenario to ensure it's fixed
-2. Tests edge cases related to the bug
-3. Includes clear test descriptions
-4. Uses appropriate assertions
+Write a complete, runnable regression test file using {test_framework} that:
+1. Tests the exact bug scenario to prove it is fixed
+2. Tests relevant edge cases
+3. Uses descriptive test function names
+4. Includes only code — no prose, no markdown, no explanations
 
-Provide complete, runnable test code."""
+Output only the test code:"""
     
     def process(
         self,
@@ -45,30 +54,41 @@ Provide complete, runnable test code."""
     ) -> Dict[str, Any]:
         """
         Generate regression test
-        
+
         Args:
             bug_info: Structured bug information
             fixed_code: The fixed code
             language: Programming language
-            
+
         Returns:
             Generated test code
         """
         prompt = self.build_prompt(bug_info, fixed_code, language)
         response = self.generate_with_retry(prompt)
-        
+
+        framework = "pytest" if language == "python" else "jest"
+
         if not response:
             return {
-                "generated_test": "# Unable to generate test",
-                "test_framework": "pytest" if language == "python" else "jest",
-                "confidence": "low"
+                "generated_test": f"# Unable to generate test — AI agent did not return a response.",
+                "test_framework": framework,
+                "confidence": "low",
             }
-        
+
+        # Strip any markdown code fences the model might add
+        code = response.strip()
+        for fence in [f"```{language}", "```python", "```javascript", "```typescript", "```"]:
+            if code.startswith(fence):
+                code = code[len(fence):]
+                break
+        if code.endswith("```"):
+            code = code[:-3]
+
         return {
-            "generated_test": response,
-            "test_framework": "pytest" if language == "python" else "jest",
+            "generated_test": code.strip(),
+            "test_framework": framework,
             "language": language,
-            "confidence": "medium"
+            "confidence": "high",
         }
 
 # Made with Bob

@@ -61,7 +61,13 @@ export const repositoryAPI = {
       onUploadProgress: onProgress,
     });
   },
-  connectGithub: (projectId, data) => api.post(`/repository/${projectId}/connect-github`, data),
+  connectGithub: (projectId, repoUrl) => {
+    const formData = new FormData();
+    formData.append('repo_url', repoUrl);
+    return api.post(`/repository/${projectId}/connect-github`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   getStatus: (projectId) => api.get(`/repository/${projectId}/repository/status`),
   delete: (projectId) => api.delete(`/repository/${projectId}/repository`),
 };

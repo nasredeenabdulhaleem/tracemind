@@ -9,7 +9,7 @@ class BugUnderstandingAgent(BaseAgent):
     """Agent for understanding and structuring bug descriptions"""
     
     def __init__(self):
-        super().__init__(model_id="ibm/granite-13b-chat-v2")
+        super().__init__(model_id="meta-llama/llama-3-3-70b-instruct")
     
     def build_prompt(self, bug_description: str) -> str:
         """Build prompt for bug understanding"""

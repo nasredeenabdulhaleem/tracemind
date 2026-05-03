@@ -1,9 +1,58 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { projectsAPI, analysisAPI } from '../services/api';
 import Navbar from '../components/common/Navbar';
 import AnalysisForm from '../components/analysis/AnalysisForm';
 import AnalysisResults from '../components/analysis/AnalysisResults';
+import {
+  Clock, AlertCircle, CheckCircle2, History, ChevronRight, Loader2,
+} from 'lucide-react';
+
+const SEVERITY_DOT = {
+  critical: 'bg-red-500',
+  high:     'bg-orange-400',
+  medium:   'bg-yellow-400',
+  low:      'bg-green-500',
+};
+
+function HistoryItem({ item, isActive, onClick }) {
+  const dot = SEVERITY_DOT[(item.severity || 'medium').toLowerCase()] || SEVERITY_DOT.medium;
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left px-3 py-3 rounded-xl border transition-all group
+        ${isActive
+          ? 'border-blue-200 bg-blue-50'
+          : 'border-transparent hover:border-gray-100 hover:bg-gray-50'
+        }`}
+    >
+      <div className="flex items-start gap-2.5">
+        <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${dot}`} />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-gray-800 leading-snug line-clamp-2">
+            {item.bug_summary || item.bug_description}
+          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <Clock size={10} className="text-gray-400" />
+            <span className="text-xs text-gray-400">
+              {new Date(item.created_at).toLocaleString(undefined, {
+                month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+              })}
+            </span>
+            {item.processing_time_ms && (
+              <span className="text-xs text-gray-300">
+                · {(item.processing_time_ms / 1000).toFixed(1)}s
+              </span>
+            )}
+          </div>
+        </div>
+        <ChevronRight size={12} className="text-gray-300 group-hover:text-gray-500 shrink-0 mt-1 transition-colors" />
+      </div>
+    </button>
+  );
+}
 
 const Analysis = () => {
   const { id } = useParams();
@@ -12,33 +61,69 @@ const Analysis = () => {
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
 
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [activeHistoryId, setActiveHistoryId] = useState(null);
+  const [historyLoadingId, setHistoryLoadingId] = useState(null);
+
   useEffect(() => {
     loadProject();
+    loadHistory();
   }, [id]);
 
   const loadProject = async () => {
     try {
       const response = await projectsAPI.get(id);
       setProject(response.data);
-    } catch (error) {
-      console.error('Failed to load project:', error);
+    } catch {
+      toast.error('Failed to load project');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const response = await analysisAPI.getHistory(id, { page: 1, page_size: 20 });
+      setHistory(response.data.analyses || []);
+    } catch {
+      // history panel is non-critical; swallow error silently
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [id]);
+
+  const loadHistoryItem = async (item) => {
+    if (activeHistoryId === item.id) return;
+    setHistoryLoadingId(item.id);
+    try {
+      const response = await analysisAPI.get(item.id);
+      setAnalysis(response.data);
+      setActiveHistoryId(item.id);
+    } catch {
+      toast.error('Failed to load analysis');
+    } finally {
+      setHistoryLoadingId(null);
     }
   };
 
   const handleAnalyze = async (bugDescription) => {
     setAnalyzing(true);
     setAnalysis(null);
+    setActiveHistoryId(null);
 
     try {
       const response = await analysisAPI.analyze({
-        project_id: parseInt(id),
+        project_id: id,
         bug_description: bugDescription,
       });
       setAnalysis(response.data);
+      toast.success('Analysis complete');
+      // Refresh history to include the new entry
+      loadHistory();
     } catch (error) {
-      alert(error.response?.data?.detail || 'Analysis failed');
+      toast.error(error.response?.data?.detail || 'Analysis failed');
     } finally {
       setAnalyzing(false);
     }
@@ -46,67 +131,108 @@ const Analysis = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
         <Navbar />
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+          <p className="text-sm text-gray-500">Loading…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <Navbar />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <Link to={`/projects/${id}`} className="text-blue-600 hover:text-blue-700 text-sm">
-            ← Back to Project
-          </Link>
-        </div>
+
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Link
+          to={`/projects/${id}`}
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-600 transition-colors mb-6"
+        >
+          ← Back to Project
+        </Link>
 
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Bug Analysis</h1>
-          <p className="text-gray-600">{project?.name}</p>
+          <h1 className="text-2xl font-bold text-gray-900">Bug Analysis</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{project?.name}</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_2fr_280px] gap-6">
+
+          {/* ── Left: form ── */}
+          <div className="space-y-4">
             <AnalysisForm onSubmit={handleAnalyze} loading={analyzing} />
           </div>
 
+          {/* ── Center: results ── */}
           <div>
             {analyzing ? (
-              <div className="card">
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Analyzing bug with AI agents...</p>
-                  <p className="text-sm text-gray-500 mt-2">This may take 30-60 seconds</p>
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+                <div className="flex flex-col items-center py-8 gap-4">
+                  <div className="relative w-14 h-14">
+                    <div className="w-14 h-14 rounded-full border-4 border-blue-100 absolute inset-0" />
+                    <div className="w-14 h-14 rounded-full border-4 border-blue-500 border-t-transparent animate-spin absolute inset-0" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-700">Running AI agent pipeline…</p>
+                  <div className="flex flex-col items-center gap-1">
+                    {['Bug Understanding', 'Code Retrieval', 'Root Cause', 'Fix Generation', 'Test Generation'].map((s, i) => (
+                      <span key={i} className="text-xs text-gray-400">{i + 1}. {s}</span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">This takes ~30–60 seconds</p>
                 </div>
               </div>
             ) : analysis ? (
               <AnalysisResults analysis={analysis} />
             ) : (
-              <div className="card">
-                <div className="text-center py-12 text-gray-500">
-                  <svg
-                    className="mx-auto h-12 w-12 text-gray-400 mb-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  <p>Enter a bug description to start analysis</p>
+              <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-8 flex flex-col items-center justify-center text-center h-full min-h-[280px]">
+                <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
+                  <AlertCircle size={22} className="text-gray-300" />
                 </div>
+                <p className="text-sm text-gray-400">Describe a bug and click Analyze Bug</p>
+                <p className="text-xs text-gray-300 mt-1">Results will appear here</p>
               </div>
             )}
+          </div>
+
+          {/* ── Right: history ── */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 h-fit max-h-[calc(100vh-180px)] flex flex-col">
+            <div className="flex items-center gap-2 mb-3 shrink-0">
+              <History size={14} className="text-gray-400" />
+              <p className="text-xs font-semibold text-gray-700">Analysis History</p>
+              {history.length > 0 && (
+                <span className="ml-auto text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{history.length}</span>
+              )}
+            </div>
+
+            <div className="overflow-y-auto flex-1 space-y-1 pr-0.5">
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 size={18} className="animate-spin text-gray-300" />
+                </div>
+              ) : history.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-xs text-gray-400">No analyses yet</p>
+                  <p className="text-xs text-gray-300 mt-0.5">Run your first analysis above</p>
+                </div>
+              ) : (
+                history.map((item) => (
+                  <div key={item.id} className="relative">
+                    {historyLoadingId === item.id && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-xl z-10">
+                        <Loader2 size={14} className="animate-spin text-blue-500" />
+                      </div>
+                    )}
+                    <HistoryItem
+                      item={item}
+                      isActive={activeHistoryId === item.id}
+                      onClick={() => loadHistoryItem(item)}
+                    />
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -116,4 +242,3 @@ const Analysis = () => {
 
 export default Analysis;
 
-// Made with Bob

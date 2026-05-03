@@ -51,13 +51,28 @@ async def analyze_bug(
         current_user.id
     )
     
-    # Check if project has vector index
+    # Check if project has vector index; auto-build if chunks exist but index file is missing
     vector_service = VectorIndexService()
     if not vector_service.index_exists(str(request.project_id)):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Project must be indexed before analysis. Create a vector index first."
-        )
+        # Try to rebuild from existing chunks (handles projects parsed before auto-indexing)
+        from app.models.code_chunk import CodeChunk
+        chunk_count = db.query(CodeChunk).filter(
+            CodeChunk.project_id == str(request.project_id)
+        ).count()
+        if chunk_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Project must be parsed before analysis. Parse the repository first."
+            )
+        logger.info(f"Vector index missing for project {request.project_id}, rebuilding from {chunk_count} chunks")
+        try:
+            vector_service.create_index(str(request.project_id), db)
+        except Exception as idx_err:
+            logger.error(f"Auto-index rebuild failed: {idx_err}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to build vector index. Please re-parse the repository."
+            )
     
     try:
         # Run analysis
@@ -68,11 +83,12 @@ async def analyze_bug(
             str(current_user.id),
             db
         )
-        
+
+        # Build response — exclude workflow metadata and avoid duplicate keys
+        response_data = {k: v for k, v in result.items() if k != "workflow"}
         return AnalysisResponse(
-            analysis_id=result["analysis_id"],
             project_id=request.project_id,
-            **result
+            **response_data
         )
         
     except Exception as e:
@@ -171,10 +187,10 @@ async def get_analysis(
         analysis_id=analysis.id,
         project_id=analysis.project_id,
         bug_description=analysis.bug_description,
-        bug_summary=analysis.bug_description[:100],
+        bug_summary=analysis.bug_summary or analysis.bug_description[:100],
         affected_components=[],
-        bug_type="unknown",
-        severity="medium",
+        bug_type=analysis.bug_type or "unknown",
+        severity=analysis.severity or "medium",
         relevant_files=analysis.affected_files or [],
         code_chunks=[],
         root_cause=analysis.root_cause or "",
@@ -182,7 +198,7 @@ async def get_analysis(
         suggested_fix=analysis.suggested_fix or "",
         explanation_simple=analysis.explanation_simple or "",
         generated_test=analysis.generated_test or "",
-        test_framework="pytest",
+        test_framework=analysis.test_framework or "pytest",
         processing_time_ms=analysis.processing_time_ms or 0,
         created_at=analysis.created_at
     )

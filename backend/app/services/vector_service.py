@@ -34,8 +34,11 @@ class VectorIndexService:
         self._init_model()
     
     def _init_model(self):
-        """Initialize sentence transformer model"""
+        """Initialize sentence transformer model (offline, from local cache)"""
         try:
+            # Force offline mode so no network calls are made to huggingface.co
+            os.environ.setdefault("HF_HUB_OFFLINE", "1")
+            os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
             logger.info(f"Loading embedding model: {self.EMBEDDING_MODEL}")
             self.model = SentenceTransformer(self.EMBEDDING_MODEL)
             logger.info("Embedding model loaded successfully")

@@ -1,11 +1,13 @@
 """Application configuration management"""
 
-from pydantic_settings import BaseSettings
-from typing import List
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
+
+    model_config = SettingsConfigDict(env_file='.env', case_sensitive=False, extra='ignore')
     
     # Database
     database_url: str
@@ -28,13 +30,17 @@ class Settings(BaseSettings):
     
     # Application
     environment: str = "development"
-    debug: bool = False
+    debug: bool = True
     cors_origins: str = "http://localhost:5173"
     
     # File Processing
     max_upload_size: int = 104857600  # 100MB
     temp_dir: str = "/tmp/tracemind"
-    
+
+    # Workflow Timeouts
+    max_analysis_time: int = 30
+    max_workflow_time: int = 120
+
     # Rate Limiting (optional)
     redis_host: str = "localhost"
     redis_port: int = 6379
@@ -43,10 +49,6 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> List[str]:
         """Parse CORS origins from comma-separated string"""
         return [origin.strip() for origin in self.cors_origins.split(",")]
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
 
 
 # Global settings instance

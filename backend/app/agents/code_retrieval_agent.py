@@ -9,7 +9,7 @@ class CodeRetrievalAgent(BaseAgent):
     
     def __init__(self):
         # This agent primarily uses vector search, not LLM generation
-        super().__init__(model_id="ibm/granite-13b-chat-v2")
+        super().__init__(model_id="meta-llama/llama-3-3-70b-instruct")
     
     def build_prompt(self, **kwargs) -> str:
         """Not used for this agent"""

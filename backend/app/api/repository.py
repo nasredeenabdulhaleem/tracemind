@@ -9,12 +9,28 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.project import Project
+from app.models.code_chunk import CodeChunk as CodeChunkModel
 from app.services.repo_service import RepoIngestionService
+from app.services.storage_service import RepoStorageService
 from app.services.project_service import ProjectService
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _replace_existing_repo(project: Project, db: Session, project_id: UUID) -> None:
+    """Atomically clear all stale data when replacing an existing repository."""
+    storage_service = RepoStorageService()
+    if project.r2_object_key:
+        storage_service.delete_repo(project.r2_object_key)
+    # Clear stale code chunks (re-parse will recreate them)
+    db.query(CodeChunkModel).filter(CodeChunkModel.project_id == project_id).delete(synchronize_session=False)
+    project.r2_object_key = None
+    project.is_indexed = False
+    project.indexing_status = "pending"
+    db.commit()
+    logger.info(f"Cleared existing repo data for project {project_id}")
 
 
 @router.post("/{project_id}/connect-github", status_code=status.HTTP_200_OK)
@@ -41,14 +57,11 @@ async def connect_github_repo(
     """
     # Verify project ownership
     project = ProjectService.verify_project_ownership(db, project_id, current_user.id)
-    
-    # Check if project already has a repo
+
+    # If project already has a repo, atomically replace it
     if project.r2_object_key:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Project already has a repository. Delete it first to upload a new one."
-        )
-    
+        _replace_existing_repo(project, db, project_id)
+
     # Ingest repository
     repo_service = RepoIngestionService()
     success, object_key, error = await repo_service.ingest_github_repo(
@@ -106,14 +119,11 @@ async def upload_zip_repo(
     """
     # Verify project ownership
     project = ProjectService.verify_project_ownership(db, project_id, current_user.id)
-    
-    # Check if project already has a repo
+
+    # If project already has a repo, atomically replace it
     if project.r2_object_key:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Project already has a repository. Delete it first to upload a new one."
-        )
-    
+        _replace_existing_repo(project, db, project_id)
+
     # Ingest ZIP file
     repo_service = RepoIngestionService()
     success, object_key, error = await repo_service.ingest_zip_upload(

@@ -40,15 +40,13 @@ class CodeParserService:
         """Initialize tree-sitter parsers"""
         try:
             # Python parser
-            PY_LANGUAGE = Language(tspython.language(), "python")
-            py_parser = Parser()
-            py_parser.set_language(PY_LANGUAGE)
+            PY_LANGUAGE = Language(tspython.language())
+            py_parser = Parser(PY_LANGUAGE)
             self.parsers['python'] = py_parser
-            
+
             # JavaScript/TypeScript parser
-            JS_LANGUAGE = Language(tsjavascript.language(), "javascript")
-            js_parser = Parser()
-            js_parser.set_language(JS_LANGUAGE)
+            JS_LANGUAGE = Language(tsjavascript.language())
+            js_parser = Parser(JS_LANGUAGE)
             self.parsers['javascript'] = js_parser
             self.parsers['typescript'] = js_parser  # TypeScript uses JS parser
             

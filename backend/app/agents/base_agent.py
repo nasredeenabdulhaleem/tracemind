@@ -2,7 +2,7 @@
 
 from typing import Dict, Any, Optional
 import logging
-from ibm_watsonx_ai.foundation_models import Model
+from ibm_watsonx_ai.foundation_models import ModelInference
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 
 from app.config import settings
@@ -28,7 +28,7 @@ class BaseAgent:
     ):
         """
         Initialize base agent
-        
+
         Args:
             model_id: watsonx.ai model ID
             params: Generation parameters (optional)
@@ -36,25 +36,22 @@ class BaseAgent:
         self.model_id = model_id
         self.params = params or self.DEFAULT_PARAMS.copy()
         self.model = None
-        self._init_model()
+        # Lazy init — model created on first use so startup DNS blips don't kill the agent
+        self._credentials = {
+            "url": settings.watsonx_url,
+            "apikey": settings.watsonx_api_key
+        }
     
     def _init_model(self):
-        """Initialize watsonx.ai model"""
+        """Initialize watsonx.ai model (called lazily on first use)"""
         try:
-            credentials = {
-                "url": settings.watsonx_url,
-                "apikey": settings.watsonx_api_key
-            }
-            
-            self.model = Model(
+            self.model = ModelInference(
                 model_id=self.model_id,
                 params=self.params,
-                credentials=credentials,
+                credentials=self._credentials,
                 project_id=settings.watsonx_project_id
             )
-            
             logger.info(f"Initialized watsonx.ai model: {self.model_id}")
-            
         except Exception as e:
             logger.error(f"Failed to initialize watsonx.ai model: {e}")
             raise
@@ -62,17 +59,18 @@ class BaseAgent:
     def generate(self, prompt: str) -> str:
         """
         Generate text using watsonx.ai
-        
+
         Args:
             prompt: Input prompt
-            
+
         Returns:
             Generated text
         """
         try:
+            if self.model is None:
+                self._init_model()
             response = self.model.generate_text(prompt=prompt)
             return response.strip()
-            
         except Exception as e:
             logger.error(f"Generation failed: {e}")
             raise

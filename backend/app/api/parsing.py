@@ -12,6 +12,7 @@ from app.models.project import Project
 from app.services.project_service import ProjectService
 from app.services.storage_service import RepoStorageService
 from app.services.parser_service import CodeParserService
+from app.services.vector_service import VectorIndexService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -91,10 +92,11 @@ def parse_project_background(project_id: str, r2_object_key: str, db: Session):
         db: Database session
     """
     storage_service = RepoStorageService()
-    parser_service = CodeParserService()
     temp_dir = None
-    
+
     try:
+        parser_service = CodeParserService()
+
         logger.info(f"Downloading repository for project {project_id}")
         
         # Download repository from R2
@@ -115,14 +117,25 @@ def parse_project_background(project_id: str, r2_object_key: str, db: Session):
         # Update project status
         project = db.query(Project).filter(Project.id == project_id).first()
         if project:
-            project.is_indexed = True
             project.indexing_status = "completed"
             db.commit()
-        
+
         logger.info(
             f"Parsing completed for project {project_id}: "
             f"{files_parsed} files, {chunks_created} chunks"
         )
+
+        # Auto-create FAISS vector index immediately after parsing
+        logger.info(f"Auto-creating vector index for project {project_id}")
+        vector_service = VectorIndexService()
+        chunks_indexed, index_path = vector_service.create_index(project_id, db)
+        logger.info(f"Vector index created: {chunks_indexed} chunks indexed at {index_path}")
+
+        # Mark project as fully ready
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if project:
+            project.is_indexed = True
+            db.commit()
         
     except Exception as e:
         logger.error(f"Parsing failed for project {project_id}: {e}")
