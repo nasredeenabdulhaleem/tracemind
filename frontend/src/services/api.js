@@ -95,6 +95,52 @@ export const indexingAPI = {
 // Analysis API
 export const analysisAPI = {
   analyze: (data) => api.post('/analysis/analyze', data),
+  analyzeStream: (data, onEvent) => {
+    // Returns a controller so the caller can abort
+    const controller = new AbortController();
+    const token = localStorage.getItem('token');
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+
+    fetch(`${baseUrl}/analysis/analyze/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Analysis failed' }));
+        onEvent({ type: 'error', message: err.detail || 'Analysis failed' });
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // keep incomplete line
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const event = JSON.parse(line.slice(6));
+              onEvent(event);
+            } catch {/* ignore malformed */}
+          }
+        }
+      }
+    }).catch((err) => {
+      if (err.name !== 'AbortError') {
+        onEvent({ type: 'error', message: err.message || 'Stream error' });
+      }
+    });
+
+    return controller;
+  },
   getHistory: (projectId, params) => api.get(`/analysis/${projectId}/history`, { params }),
   get: (analysisId) => api.get(`/analysis/${analysisId}`),
 };

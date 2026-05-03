@@ -1,9 +1,14 @@
 """Bug analysis API routes"""
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
 import logging
+import json
+import asyncio
+import threading
+import queue
 
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -97,6 +102,93 @@ async def analyze_bug(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis failed: {str(e)}"
         )
+
+
+@router.post("/analyze/stream")
+async def analyze_bug_stream(
+    request: AnalysisRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Analyze a bug with SSE streaming — emits progress events for each agent step,
+    then a final 'result' event with the full analysis JSON.
+    """
+    project = ProjectService.verify_project_ownership(db, request.project_id, current_user.id)
+
+    # Auto-rebuild vector index if missing
+    vector_service = VectorIndexService()
+    if not vector_service.index_exists(str(request.project_id)):
+        from app.models.code_chunk import CodeChunk
+        chunk_count = db.query(CodeChunk).filter(
+            CodeChunk.project_id == str(request.project_id)
+        ).count()
+        if chunk_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Project must be parsed before analysis. Parse the repository first."
+            )
+        try:
+            vector_service.create_index(str(request.project_id), db)
+        except Exception as idx_err:
+            logger.error(f"Auto-index rebuild failed: {idx_err}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to build vector index. Please re-parse the repository."
+            )
+
+    event_queue: queue.Queue = queue.Queue()
+    DONE_SENTINEL = object()
+
+    def run_analysis():
+        try:
+            analysis_service = AnalysisOrchestrationService()
+
+            def on_progress(event: dict):
+                event_queue.put(event)
+
+            result = analysis_service.analyze_bug(
+                request.bug_description,
+                str(request.project_id),
+                str(current_user.id),
+                db,
+                callback=on_progress,
+            )
+            result.pop("workflow", None)
+            event_queue.put({"type": "result", "data": result})
+        except Exception as e:
+            logger.error(f"Streaming analysis failed: {e}")
+            event_queue.put({"type": "error", "message": str(e)})
+        finally:
+            event_queue.put(DONE_SENTINEL)
+
+    thread = threading.Thread(target=run_analysis, daemon=True)
+    thread.start()
+
+    async def event_generator():
+        loop = asyncio.get_event_loop()
+        while True:
+            try:
+                event = await loop.run_in_executor(None, lambda: event_queue.get(timeout=120))
+            except queue.Empty:
+                yield 'data: {"type":"error","message":"Analysis timed out"}\n\n'
+                break
+
+            if event is DONE_SENTINEL:
+                break
+
+            if "type" not in event:
+                event["type"] = "progress"
+
+            yield f"data: {json.dumps(event, default=str)}\n\n"
+
+        yield 'data: {"type":"done"}\n\n'
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/{project_id}/history", response_model=AnalysisList)

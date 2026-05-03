@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { projectsAPI, analysisAPI } from '../services/api';
 import Navbar from '../components/common/Navbar';
 import AnalysisForm from '../components/analysis/AnalysisForm';
 import AnalysisResults from '../components/analysis/AnalysisResults';
+import AgentProgress from '../components/analysis/AgentProgress';
 import {
   Clock, AlertCircle, CheckCircle2, History, ChevronRight, Loader2,
 } from 'lucide-react';
@@ -60,6 +61,9 @@ const Analysis = () => {
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [stepState, setStepState] = useState({});
+  const [streamError, setStreamError] = useState(null);
+  const streamControllerRef = useRef(null);
 
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -109,24 +113,37 @@ const Analysis = () => {
   };
 
   const handleAnalyze = async (bugDescription) => {
+    // Abort any in-flight stream
+    if (streamControllerRef.current) {
+      streamControllerRef.current.abort();
+    }
+
     setAnalyzing(true);
     setAnalysis(null);
     setActiveHistoryId(null);
+    setStepState({});
+    setStreamError(null);
 
-    try {
-      const response = await analysisAPI.analyze({
-        project_id: id,
-        bug_description: bugDescription,
-      });
-      setAnalysis(response.data);
-      toast.success('Analysis complete');
-      // Refresh history to include the new entry
-      loadHistory();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Analysis failed');
-    } finally {
-      setAnalyzing(false);
-    }
+    const controller = analysisAPI.analyzeStream(
+      { project_id: id, bug_description: bugDescription },
+      (event) => {
+        if (event.type === 'progress') {
+          setStepState((prev) => ({ ...prev, [event.step]: event.status }));
+        } else if (event.type === 'result') {
+          setAnalysis(event.data);
+          toast.success('Analysis complete');
+          loadHistory();
+          setAnalyzing(false);
+        } else if (event.type === 'error') {
+          setStreamError(event.message);
+          toast.error(event.message || 'Analysis failed');
+          setAnalyzing(false);
+        } else if (event.type === 'done') {
+          setAnalyzing(false);
+        }
+      }
+    );
+    streamControllerRef.current = controller;
   };
 
   if (loading) {
@@ -168,21 +185,7 @@ const Analysis = () => {
           {/* ── Center: results ── */}
           <div>
             {analyzing ? (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
-                <div className="flex flex-col items-center py-8 gap-4">
-                  <div className="relative w-14 h-14">
-                    <div className="w-14 h-14 rounded-full border-4 border-blue-100 absolute inset-0" />
-                    <div className="w-14 h-14 rounded-full border-4 border-blue-500 border-t-transparent animate-spin absolute inset-0" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-700">Running AI agent pipeline…</p>
-                  <div className="flex flex-col items-center gap-1">
-                    {['Bug Understanding', 'Code Retrieval', 'Root Cause', 'Fix Generation', 'Test Generation'].map((s, i) => (
-                      <span key={i} className="text-xs text-gray-400">{i + 1}. {s}</span>
-                    ))}
-                  </div>
-                  <p className="text-xs text-gray-400 mt-2">This takes ~30–60 seconds</p>
-                </div>
-              </div>
+              <AgentProgress stepState={stepState} errorMessage={streamError} />
             ) : analysis ? (
               <AnalysisResults analysis={analysis} />
             ) : (
