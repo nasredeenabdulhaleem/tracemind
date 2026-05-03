@@ -38,19 +38,29 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const extractError = (err, fallback) => {
+    const detail = err.response?.data?.detail;
+    if (!detail) return fallback;
+    // Pydantic 422 returns detail as an array of validation errors
+    if (Array.isArray(detail)) {
+      return detail.map((e) => e.msg || String(e)).join('; ');
+    }
+    return String(detail);
+  };
+
   const login = async (email, password) => {
     setError(null);
     try {
       const response = await authAPI.login({ email, password });
       const { access_token, user: userData } = response.data;
-      
+
       localStorage.setItem('token', access_token);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
-      
+
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.detail || 'Login failed';
+      const message = extractError(err, 'Login failed');
       setError(message);
       return { success: false, error: message };
     }
@@ -62,7 +72,7 @@ export const AuthProvider = ({ children }) => {
       await authAPI.register(userData);
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.detail || 'Registration failed';
+      const message = extractError(err, 'Registration failed');
       setError(message);
       return { success: false, error: message };
     }
